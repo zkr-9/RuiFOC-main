@@ -1,10 +1,10 @@
-# JerryFOC - STM32G4 轻量级高性能无刷电机 FOC 驱动库
+# RUIFOC - STM32G4 轻量级高性能无刷电机 FOC 驱动库
 
 ![License](https://img.shields.io/badge/License-MIT-blue.svg)
 ![Platform](https://img.shields.io/badge/Platform-STM32G431-green.svg)
 ![Language](https://img.shields.io/badge/Language-C-orange.svg)
 
-JerryFOC 是一个从零手写、专为 **STM32G4 系列**（基于 STM32G431CBT6）深度优化的轻量级 FOC (磁场定向控制) 驱动库。它摒弃了臃肿的冗余抽象，直接利用 STM32G4 强大的底层硬件特性（如硬件三角函数加速器、TIM-ADC 底层硬件触发同步等），实现了极致的控制频率与极低的 CPU 占用。
+RUIFOC 是一个从零手写、专为 **STM32G4 系列**（基于 STM32G431CBT6）深度优化的轻量级 FOC (磁场定向控制) 驱动库。它摒弃了臃肿的冗余抽象，直接利用 STM32G4 强大的底层硬件特性（如硬件三角函数加速器、TIM-ADC 底层硬件触发同步等），实现了极致的控制频率与极低的 CPU 占用。
 
 ## ✨ 核心特性
 
@@ -33,30 +33,30 @@ JerryFOC 是一个从零手写、专为 **STM32G4 系列**（基于 STM32G431CBT
 ### 2. 核心 API 示例
 
 ```c
-#include "JerryFOC.h"
+#include "RUIFOC.h"
 
 int main() {
     // ... STM32 HAL 初始化 ...
 
     // 配置是否启用电流内环 (0: 纯电压控制[适合云台电机], 1: 启用电流环[适合大功率电机])
-    JerryFOC_useCurrentLoop(0); 
+    RUIFOC_useCurrentLoop(0); 
 
     // 播放启动提示音
-    JerryFOC_playStartupSound();
+    RUIFOC_playStartupSound();
 
     // 闭环前的开环标定 (寻找电气零点)
-    JerryFOC_alignSensor();
+    RUIFOC_alignSensor();
 
     // 进入闭环速度控制模式
-    JerryFOC_setMode(JERRYFOC_MODE_VELOCITY);
-    JerryFOC_setVelocity(20.0f); // 目标速度 20 rad/s
+    RUIFOC_setMode(RUIFOC_MODE_VELOCITY);
+    RUIFOC_setVelocity(20.0f); // 目标速度 20 rad/s
 
     // 开启 1kHz 控制循环定时器
     HAL_TIM_Base_Start_IT(&htim2);
 
     while(1) {
         // 主循环处理换相 (极速响应 ADC 中断)
-        JerryFOC_run();
+        RUIFOC_run();
     }
 }
 ```
@@ -71,12 +71,12 @@ int main() {
 
 | 函数名 | 作用与机制 |
 |---|---|
-| `JerryFOC_run()` | **底层核心心跳**：负责读取 ADC 注入组的相电流数据，执行 Clarke 与 Park 坐标变换，计算 PID 电流环/电压分配，并输出最终的 SVPWM/SPWM 占空比。它被放置在主循环中，依靠 ADC `JEOS` 标志位**严格按 5kHz 极速定频执行**。 |
-| `JerryFOC_alignSensor()` | **开环标定**：上电时强制向特定电角度（通常是 $3\pi/2$ 或 0）注入固定电压，强行让转子对齐到该角度，借此记录磁编码器当前读数作为“电气零点”，是 FOC 换相能顺利进行的大前提。 |
-| `JerryFOC_useCurrentLoop()` | **底层控制模式开关**：传入 `0` 时开启“纯电压前馈控制”，将外环计算出的目标直接作为电压下发，完全无视相电流底噪，是**云台电机**的唯一真神；传入 `1` 时则切入真正的带 PI 积分的电流闭环模式，是**大功率无刷/航模电机**的必备。 |
-| `JerryFOC_setMode()` | **宏观状态机切换**：可无缝切换到 `JERRYFOC_MODE_TORQUE` (扭矩/电压)、`JERRYFOC_MODE_VELOCITY` (速度环) 或 `JERRYFOC_MODE_POSITION` (位置-速度串级环)。 |
-| `JerryFOC_setPosition()` | **人性化相对位置控制**：它不采用死板的多圈绝对角度，而是以电机**当前所在的这一圈的 0 点为绝对基准**。例如电机已经转了 100 圈，你下发 3.14，它会直接转到第 100 圈的一半位置，免去了外部维护绝对圈数的麻烦。 |
-| `JerryFOC_playStartupSound()` | **启动音效**：通过巧妙地在无效电角度（Id / D轴）注入极高频的交变电压，让电机线圈产生磁致伸缩发声，由于 Iq / Q轴没有力矩，所以电机只唱歌不乱转。 |
+| `RUIFOC_run()` | **底层核心心跳**：负责读取 ADC 注入组的相电流数据，执行 Clarke 与 Park 坐标变换，计算 PID 电流环/电压分配，并输出最终的 SVPWM/SPWM 占空比。它被放置在主循环中，依靠 ADC `JEOS` 标志位**严格按 5kHz 极速定频执行**。 |
+| `RUIFOC_alignSensor()` | **开环标定**：上电时强制向特定电角度（通常是 $3\pi/2$ 或 0）注入固定电压，强行让转子对齐到该角度，借此记录磁编码器当前读数作为“电气零点”，是 FOC 换相能顺利进行的大前提。 |
+| `RUIFOC_useCurrentLoop()` | **底层控制模式开关**：传入 `0` 时开启“纯电压前馈控制”，将外环计算出的目标直接作为电压下发，完全无视相电流底噪，是**云台电机**的唯一真神；传入 `1` 时则切入真正的带 PI 积分的电流闭环模式，是**大功率无刷/航模电机**的必备。 |
+| `RUIFOC_setMode()` | **宏观状态机切换**：可无缝切换到 `RUIFOC_MODE_TORQUE` (扭矩/电压)、`RUIFOC_MODE_VELOCITY` (速度环) 或 `RUIFOC_MODE_POSITION` (位置-速度串级环)。 |
+| `RUIFOC_setPosition()` | **人性化相对位置控制**：它不采用死板的多圈绝对角度，而是以电机**当前所在的这一圈的 0 点为绝对基准**。例如电机已经转了 100 圈，你下发 3.14，它会直接转到第 100 圈的一半位置，免去了外部维护绝对圈数的麻烦。 |
+| `RUIFOC_playStartupSound()` | **启动音效**：通过巧妙地在无效电角度（Id / D轴）注入极高频的交变电压，让电机线圈产生磁致伸缩发声，由于 Iq / Q轴没有力矩，所以电机只唱歌不乱转。 |
 
 ## 📈 VOFA+ 上位机配置与波形监视
 
@@ -96,7 +96,7 @@ int main() {
 - **CH5 (相电流 A)**：INA240 真实放大的 A 相电感原始电流 (A)。
 - **CH6 (相电流 B)**：INA240 真实放大的 B 相电感原始电流 (A)。
 
-*💡 **调试建议**：如果电机震动或发出刺耳啸叫，第一时间在 VOFA+ 勾选查看 `CH5` 和 `CH6`。如果它们不是完美的正弦波而是充满了锯齿，说明 ADC 采样受到 PWM 严重干扰或 `JerryFOC_useCurrentLoop(1)` 开错了。*
+*💡 **调试建议**：如果电机震动或发出刺耳啸叫，第一时间在 VOFA+ 勾选查看 `CH5` 和 `CH6`。如果它们不是完美的正弦波而是充满了锯齿，说明 ADC 采样受到 PWM 严重干扰或 `RUIFOC_useCurrentLoop(1)` 开错了。*
 
 ## 🔧 依赖与工具链
 - **IDE**: VS Code + CMake + STM32CubeMX
